@@ -1,0 +1,6 @@
+.api/v1.5.0/*
+.idea/*
+.tmp/*
+.vscode/*
+node_modules/*
+typings/*
