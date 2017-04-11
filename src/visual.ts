@@ -182,42 +182,76 @@ module powerbi.extensibility.visual {
 
             this.xAxis.attr('transform', 'translate(0, ' + height + ')').call(xAxis);
 
-            let barsGroup = this.barContainer.selectAll('.bar').data(viewModel.dataPoints);
+            // We get all g elements with bar class in our svg elements and bind data to them
+            // d3.js will create new elements if our data more than exists g elements
+            let bars = this.barContainer
+                .selectAll('g.bar')
+                .data(viewModel.dataPoints);
 
-            barsGroup.enter().append('g').classed('bar', true);
-            barsGroup.attr({
-                width: xScale.rangeBand(),
-                height: d => height - yScale(d.value),
-                y: d => yScale(d.value),
-                x: d => xScale(d.category),
-                fill: d => d.color,
-                'fill-opacity': Visual.Config.solidOpacity
-            });
+            //so, this code will append new g elemets with 'bar' class to our data
+            bars
+                .enter()
+                .append('g')
+                .classed('bar', true);
 
-            let bars = barsGroup.append('rect').classed('bar', true)
-            .attr({
-                width: xScale.rangeBand(),
-                height: d => height - 50 - yScale(d.value),
-                y: d => yScale(d.value),
-                x: d => xScale(d.category),
-                fill: d => d.color,
-                'fill-opacity': Visual.Config.solidOpacity
-            });
-            let texts = barsGroup
+            // On the each g elements we need create one rectangle and one text
+
+            // There, we again select exists rectangles with 'bar' class
+            // bars variable already contains data (see 189 line),
+            // we just bind each element of  data to each rectangle
+            let rects = bars.selectAll("rect.bar").data(d => [d]);
+
+            //also we need add new rectangles for new data
+            rects
+                .enter()
+                .append('rect')
+                .classed('bar', true);
+            //this code will not work properly
+            //  .attr({
+            //      width: xScale.rangeBand(),
+            //      height: d => height - yScale(<number>d.value),
+            //      y: d => yScale(<number>d.value),
+            //      x: d => xScale(d.category),
+            //      fill: d => d.color,
+            //      'fill-opacity': 100
+            //  });
+
+            // important moment!
+            // now, we have rectangles with bounded data
+            // because, in next calling of update function, we already have rectangles with geometry attributes.
+            // we need update this attributes for exists rectangles
+            // above, commented code sets attributes only for appended rectangles, because append function will return collection of new rectangles.
+            // below, code will update attributes for all rectangles (for exists and new)
+            rects
+                .attr({
+                    width: xScale.rangeBand(),
+                    height: d => height - yScale(<number>d.value),
+                    y: d => yScale(<number>d.value),
+                    x: d => xScale(d.category),
+                    fill: d => d.color,
+                    'fill-opacity': 100
+                });
+
+            // so, it's similar for text element
+            let text = bars.selectAll("text.bar-text").data(d => [d]);
+            text
+                .enter()
                 .append('text')
+                .classed('bar-text', true);
+
+            text
                 .attr({
                     y: d =>  height - 20 - (height - yScale(d.value)) / 2,
-                    x: d => xScale(d.category) + 20,
+                    x: d => xScale(d.category) + xScale.rangeBand() / 2 ,
                     fill: d => "BLACK",
                 })
-                .classed('bar-text', true)
                 .text(d => { return d.value});
 
             let selectionManager = this.selectionManager;
 
-            barsGroup.on('click', function (d) {
+            bars.on('click', function (d) {
                 selectionManager.select(d.selectionId).then((ids: ISelectionId[]) => {
-                    barsGroup.attr({
+                    bars.attr({
                         'fill-opacity': ids.length > 0 ? Visual.Config.transparentOpacity : Visual.Config.solidOpacity
                     });
 
@@ -229,7 +263,7 @@ module powerbi.extensibility.visual {
                 (<Event>d3.event).stopPropagation();
             });
 
-            barsGroup.exit().remove();
+            bars.exit().remove();
         }
 
         public enumerateObjectInstances(options: EnumerateVisualObjectInstancesOptions): VisualObjectInstanceEnumeration {
