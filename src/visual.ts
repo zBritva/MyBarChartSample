@@ -32,6 +32,9 @@ module powerbi.extensibility.visual {
         enableAxis: {
             show: boolean;
         };
+        generalView: {
+            barsColor: any;
+        };
     }
 
     interface MyBarChartViewModel {
@@ -90,13 +93,24 @@ module powerbi.extensibility.visual {
             //                     (tooltipEvent: TooltipEventArgs<number>) => null);
         }
 
-        public visualTransform(options: VisualUpdateOptions): MyBarChartViewModel {
-            let dataView = options.dataViews;
-            let defaultSettings: MyBarChartSettings = {
+        public getDefaultSettings(): MyBarChartSettings {
+            return {
                 enableAxis: {
                     show: false
+                },
+                generalView: {
+                    barsColor: {
+                        solid: {
+                            color : "red"
+                        }
+                    }
                 }
             };
+        }
+
+        public visualTransform(options: VisualUpdateOptions): MyBarChartViewModel {
+            let dataView = options.dataViews;
+            let defaultSettings: MyBarChartSettings = this.getDefaultSettings();
 
             let viewModel: MyBarChartViewModel = {
                 dataPoints: [],
@@ -123,9 +137,13 @@ module powerbi.extensibility.visual {
 
             let colorPalette: IColorPalette = this.host.colorPalette;
             let objects = dataView[0].metadata.objects;
+
             let barChartSettings: MyBarChartSettings = {
                 enableAxis: {
                     show: getValue<boolean>(objects, 'enableAxis', 'show', defaultSettings.enableAxis.show)
+                },
+                generalView: {
+                    barsColor: getValue<string>(objects, 'generalView', 'barsColor', defaultSettings.generalView.barsColor)
                 }
             };
 
@@ -181,7 +199,6 @@ module powerbi.extensibility.visual {
             let xAxis = d3.svg.axis().scale(xScale).orient('bottom');
 
             this.xAxis.attr('transform', 'translate(0, ' + height + ')').call(xAxis);
-
             // We get all g elements with bar class in our svg elements and bind data to them
             // d3.js will create new elements if our data more than exists g elements
             let bars = this.barContainer
@@ -228,7 +245,7 @@ module powerbi.extensibility.visual {
                     height: d => height - yScale(<number>d.value),
                     y: d => yScale(<number>d.value),
                     x: d => xScale(d.category),
-                    fill: d => d.color,
+                    fill: d => settings.generalView.barsColor.solid.color,
                     'fill-opacity': 100
                 });
 
@@ -279,7 +296,15 @@ module powerbi.extensibility.visual {
                         },
                         selector: null
                     });
-            };
+                case 'generalView':
+                    objectEnumeration.push({
+                        objectName: objectName,
+                        properties: {
+                            barsColor: this.barChartSettings.generalView.barsColor,
+                        },
+                        selector: null
+                    });
+            }
 
             return objectEnumeration;
         }
